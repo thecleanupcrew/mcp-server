@@ -11,6 +11,10 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "fastmcp": "^3.3.0"
+    "fastmcp": "^3.3.0",
+    "fs-extra": "^11.2.0",
+    "winston": "^3.11.0",
+    "uuid": "^9.0.1",
+    "glob": "^10.3.10"
   }
 }
