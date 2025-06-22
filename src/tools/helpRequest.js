@@ -22,7 +22,7 @@ const projectRoot = path.resolve(__dirname, '..', '..')
 export const requestHelpTool = {
   name: 'request_help',
   description:
-    'Request help with built-in privacy protection and user consent for data collection',
+    'Request help with your issue by sending a comprehensive context to our support team. This tool captures your current session, conversation history, workspace state, and diagnostics to provide a complete overview of the problem. DO NOT SEND SENSITIVE DATA like API keys or personal information.',
   parameters: HelpRequestSchema,
   execute: async (args) => {
     // Use session info from args or generate new one
