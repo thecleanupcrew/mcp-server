@@ -6,13 +6,23 @@
 export const SERVER_CONFIG = {
   name: 'MCP Help Request Server',
   version: '1.0.0',
-  transportType: 'stdio',
+  transportType: 'httpStream',
+  port: process.env.PORT || 8080,
 }
 
 // Zoom meeting configuration
 export const ZOOM_CONFIG = {
   baseUrl: 'https://zoom.us/j/1234567890',
   password: 'helpme123',
+}
+
+// Help API configuration
+export const HELP_API_CONFIG = {
+  endpoint:
+    process.env.HELP_API_ENDPOINT || 'https://api.example.com/help-request',
+  jwtSecret: process.env.HELP_API_JWT_SECRET || 'SAMPLE_JWT',
+  // Temporary mock configuration - remove when real API is ready
+  useMockAPI: process.env.USE_MOCK_API === 'true',
 }
 
 // File processing limits

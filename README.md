@@ -1,23 +1,28 @@
 # MCP Help Request Server
 
-A Model Context Protocol (MCP) server that provides tools for capturing comprehensive context about development issues and facilitating human assistance through structured help requests.
+A Model Context Protocol (MCP) server that provides tools for capturing comprehensive context about development issues and facilitating human assistance through structured API-based help requests.
 
 ## Overview
 
-This server provides tools that allow AI assistants to capture detailed context about coding issues, workspace state, and user conversations, then facilitate human support through automated session management and Zoom meeting coordination.
+This server provides tools that allow AI assistants to capture detailed context about coding issues, workspace state, and user conversations, then facilitate human support through automated session management and API integration.
 
 ## Features
 
 - **Comprehensive Context Capture**: Automatically captures workspace state, file contents, error diagnostics, and conversation history
 - **Structured Help Requests**: Uses Zod schemas to ensure consistent and complete help request data
 - **Session Management**: Creates unique session IDs and logs for tracking help requests
-- **Zoom Integration**: Automatically generates Zoom meeting links for immediate human assistance
+- **API-Based Integration**: Sends help requests to external APIs for human assistance coordination
+- **Mock Development Mode**: Built-in mock API mode for development and testing
 - **Modular Architecture**: Clean separation of concerns with organized directory structure
 
 ## Architecture
 
 ```
+index.js             # Main entry point
 src/
+├── api/             # API integration layer
+│   ├── index.js     # API exports
+│   └── helpRequestAPI.js # Help request API client with mock/prod modes
 ├── config/          # Configuration files
 │   └── logger.js    # Winston logger configuration
 ├── constants/       # Application constants
@@ -29,12 +34,12 @@ src/
 │   ├── helpRequest.js # Main help request tool
 │   └── getHelpSession.js # Session retrieval tool
 ├── utils/           # Utility functions
-│   ├── workspace.js # Workspace analysis utilities
-│   └── zoom.js      # Zoom link generation
+│   └── workspace.js # Workspace analysis utilities
 └── server.js        # Main server setup and configuration
 
 logs/                # Log files and session data
-sessions/            # Session storage (future use)
+sessions/            # Session storage
+consent-records/     # Privacy consent records
 ```
 
 ## Installation
@@ -50,7 +55,7 @@ sessions/            # Session storage (future use)
 ### Starting the Server
 
 ```bash
-npm start
+npm run start
 ```
 
 The server runs using the FastMCP framework with stdio transport.
@@ -76,7 +81,7 @@ Captures comprehensive context about a development issue and creates a support s
 
 **Returns:**
 
-- Success message with Zoom meeting link
+- Success message with chat portal link from API response
 - Session ID for reference
 - Context summary
 - Next steps for the user
@@ -96,6 +101,13 @@ Retrieves the context data for a specific help session.
 
 ## Configuration
 
+### Environment Variables
+
+- `USE_MOCK_API`: Set to `'true'` to enable mock API mode for development
+- `HELP_API_ENDPOINT`: URL of the help request API endpoint
+- `HELP_API_JWT_SECRET`: JWT secret for API authentication
+- `PORT`: Server port (default: 8080)
+
 ### Logger Configuration
 
 The logger is configured in `src/config/logger.js` and creates:
@@ -109,9 +121,10 @@ The logger is configured in `src/config/logger.js` and creates:
 Application constants are defined in `src/constants/index.js`:
 
 - Server configuration
-- Zoom meeting settings
+- API configuration options
 - File processing limits
 - Directory ignore patterns
+- Log levels
 
 ## Development
 
@@ -119,11 +132,22 @@ Application constants are defined in `src/constants/index.js`:
 
 The codebase follows a modular architecture:
 
+- **API**: External API integration with mock/production modes
 - **Config**: Centralized configuration management
 - **Schemas**: Zod validation schemas for type safety
 - **Tools**: MCP tool implementations
 - **Utils**: Reusable utility functions
 - **Constants**: Shared application constants
+
+### Mock Development Mode
+
+For development and testing, enable mock mode by setting:
+
+```bash
+USE_MOCK_API=true
+```
+
+This will simulate API responses without requiring a real external API.
 
 ### Adding New Tools
 
@@ -142,11 +166,11 @@ All tool parameters are validated using Zod schemas defined in `src/schemas/`. T
 ## Dependencies
 
 - **fastmcp**: MCP server framework
-- **zod**: Schema validation
 - **winston**: Logging
 - **fs-extra**: Enhanced file system operations
 - **uuid**: UUID generation
 - **glob**: File pattern matching
+- **dotenv**: Environment variable management
 
 ## Logging
 
@@ -164,7 +188,7 @@ Each help request creates:
 - Unique session ID (UUID)
 - Timestamped session log file
 - Comprehensive context capture
-- Zoom meeting link with session reference
+- API response with chat portal link
 
 ## Error Handling
 
@@ -174,6 +198,15 @@ The server includes comprehensive error handling:
 - Detailed error logging with context
 - User-friendly error messages
 - Session recovery capabilities
+- API failure handling with fallback responses
+
+## Privacy and Consent
+
+The server includes built-in privacy protection:
+
+- User consent collection for data sharing
+- Consent record storage
+- Privacy-aware data handling
 
 ## License
 
@@ -186,3 +219,4 @@ ISC License
 3. Include logging for debugging
 4. Update documentation for new features
 5. Ensure schema validation for new parameters
+6. Test both mock and production API modes

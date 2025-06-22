@@ -1,4 +1,6 @@
+import 'dotenv/config'
 import { FastMCP } from 'fastmcp'
+
 import { logger } from './config/logger.js'
 import { SERVER_CONFIG } from './constants/index.js'
 import { requestHelpTool, getHelpSessionTool } from './tools/index.js'
@@ -33,5 +35,8 @@ export function startServer(server) {
 
   server.start({
     transportType: SERVER_CONFIG.transportType,
+    httpStream: {
+      port: SERVER_CONFIG.port,
+    },
   })
 }

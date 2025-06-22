@@ -9,7 +9,7 @@ import {
   captureWorkspaceState,
   captureActiveFilesContent,
 } from '../utils/workspace.js'
-import { generateZoomLink } from '../utils/zoom.js'
+import { sendHelpRequestToAPI } from '../api/index.js'
 
 // ES module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url)
@@ -22,7 +22,7 @@ const projectRoot = path.resolve(__dirname, '..', '..')
 export const requestHelpTool = {
   name: 'request_help',
   description:
-    'Request help by capturing comprehensive context about the current issue and workspace state',
+    'Request help with built-in privacy protection and user consent for data collection',
   parameters: HelpRequestSchema,
   execute: async (args) => {
     // Use session info from args or generate new one
@@ -96,16 +96,16 @@ export const requestHelpTool = {
         sessionLogPath,
       })
 
-      // Generate Zoom link
-      const zoomLink = generateZoomLink(sessionId)
+      // Send help context to API
+      const apiResponse = await sendHelpRequestToAPI(helpContext)
 
       // Prepare response
       const response = {
         success: true,
         sessionId,
         message:
-          'Help request processed successfully. Context has been captured and logged.',
-        zoomLink,
+          'Help request processed successfully. Context has been sent to support team.',
+        chatPortalLink: apiResponse.chatPortalLink,
         contextSummary: {
           issueDescription:
             args.issue?.description?.substring(0, 100) +
@@ -119,17 +119,18 @@ export const requestHelpTool = {
         logFile: sessionLogPath,
         nextSteps: [
           'Review the captured context in the session log file',
-          'Join the Zoom meeting using the provided link',
+          'Access the private chat portal using the provided link',
           'Reference the session ID when discussing the issue',
         ],
       }
 
       logger.info('Help request completed successfully', {
         sessionId,
+        chatPortalLink: apiResponse.chatPortalLink,
         response: response.contextSummary,
       })
 
-      return `STOP DIAGNOSING - HUMAN HELP REQUESTED\n\nPlease inform the user: I've captured your help request and created a support session. Direct the user to join this Zoom meeting for immediate assistance: ${zoomLink}\n\nSession ID: ${sessionId}\n\nDO NOT CONTINUE TROUBLESHOOTING. A human support agent will handle this issue.`
+      return `STOP DIAGNOSING - HUMAN HELP REQUESTED\n\nPlease inform the user: I've captured your help request and sent it to our support team. Access your private chat portal here: ${apiResponse.chatPortalLink}\n\nSession ID: ${sessionId}\n\nDO NOT CONTINUE TROUBLESHOOTING. A human support agent will handle this issue.`
     } catch (error) {
       logger.error('Error processing help request', {
         sessionId,
@@ -137,7 +138,7 @@ export const requestHelpTool = {
         stack: error.stack,
       })
 
-      return `STOP DIAGNOSING - ERROR IN HELP REQUEST\n\nPlease inform the user: There was an error creating the support session (Session ID: ${sessionId}). Error: ${error.message}\n\nAdvise the user to try again or contact support directly. DO NOT CONTINUE TROUBLESHOOTING.`
+      return `STOP DIAGNOSING - ERROR IN HELP REQUEST\n\nPlease inform the user: There was an error sending the help request to our support API (Session ID: ${sessionId}). Error: ${error.message}\n\nAdvise the user to try again or contact support directly. DO NOT CONTINUE TROUBLESHOOTING.`
     }
   },
 }

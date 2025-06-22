@@ -2,12 +2,6 @@ import { z } from 'zod'
 
 // --- Reusable sub-schemas ---
 export const SessionInfo = z.object({
-  sessionId: z
-    .string()
-    .uuid()
-    .describe(
-      'Unique session identifier (UUID format). Generate a new UUID for each help request.'
-    ),
   timestamp: z
     .string()
     .refine((s) => !isNaN(Date.parse(s)), {
