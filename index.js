@@ -5,6 +5,11 @@ import winston from 'winston'
 import { v4 as uuidv4 } from 'uuid'
 import { glob } from 'glob'
 import path from 'path'
+import { fileURLToPath } from 'url'
+
+// ES module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // Configure Winston logger
 const logger = winston.createLogger({
@@ -40,31 +45,200 @@ const server = new FastMCP({
   version: '1.0.0',
 })
 
-// Comprehensive schema for help request parameters
-const helpRequestSchema = z.object({
-  issue_description: z
+// --- Reusable sub-schemas ---
+const SessionInfo = z.object({
+  sessionId: z
     .string()
-    .describe("Detailed description of the user's issue or problem"),
-  conversation_history: z
+    .uuid()
+    .describe(
+      'Unique session identifier (UUID format). Generate a new UUID for each help request.'
+    ),
+  timestamp: z
+    .string()
+    .refine((s) => !isNaN(Date.parse(s)), {
+      message: 'Must be an ISO timestamp',
+    })
+    .describe(
+      "ISO timestamp when the help request was initiated (e.g., '2025-06-22T14:44:38.000Z')"
+    ),
+})
+
+const Message = z.object({
+  role: z
+    .enum(['system', 'user', 'assistant', 'tool'])
+    .describe(
+      "Message sender: 'user' for human messages, 'assistant' for AI responses, 'system' for system messages, 'tool' for tool outputs"
+    ),
+  content: z.string().describe('The actual message content'),
+  timestamp: z
     .string()
     .optional()
-    .describe('Recent conversation history between user and assistant'),
-  error_messages: z
+    .describe('When the message was sent (ISO timestamp)'),
+})
+
+const Conversation = z.object({
+  messages: z
+    .array(Message)
+    .describe(
+      'Array of conversation messages leading up to the help request. Include recent context that helps understand the issue.'
+    ),
+})
+
+const FileDetail = z.object({
+  path: z
+    .string()
+    .describe(
+      "Relative path to the file from workspace root (e.g., 'src/index.js', 'package.json')"
+    ),
+  size: z.number().int().describe('File size in bytes'),
+  lines: z.number().int().optional().describe('Number of lines in the file'),
+  hash: z
     .string()
     .optional()
-    .describe('Any error messages encountered'),
-  active_files: z
+    .describe('File hash for change detection (optional)'),
+  diff: z
+    .string()
+    .optional()
+    .describe('Recent changes to the file (git diff format, optional)'),
+  lastModified: z
+    .string()
+    .optional()
+    .describe('When the file was last modified (ISO timestamp)'),
+})
+
+const DirectoryTree = z.record(
+  z.string(),
+  z.union([
+    z.null(), // file
+    z.lazy(() => DirectoryTree), // nested folder
+  ])
+)
+
+const WorkspaceState = z.object({
+  rootPath: z
+    .string()
+    .describe(
+      "Absolute path to the workspace/project root directory (e.g., '/Users/dev/myproject' or 'C:/Projects/myapp')"
+    ),
+  files: z
+    .array(FileDetail)
+    .describe(
+      'Array of important files in the workspace. Include files relevant to the current issue.'
+    ),
+  structure: DirectoryTree.describe(
+    'Directory structure of the workspace as a nested object'
+  ),
+  totalFiles: z
+    .number()
+    .int()
+    .describe('Total number of files in the workspace'),
+  recentFiles: z
     .array(z.string())
     .optional()
-    .describe('List of currently active/open files'),
-  workspace_path: z
-    .string()
+    .describe('List of recently modified file paths (optional)'),
+})
+
+const ErrorDetail = z.object({
+  message: z.string(),
+  stack: z.string().optional(),
+  file: z.string().optional(),
+  line: z.number().optional(),
+})
+
+const LogEntry = z.object({
+  level: z.enum(['debug', 'info', 'warn', 'error']),
+  message: z.string(),
+  timestamp: z.string().optional(),
+  metadata: z.record(z.any()).optional(),
+})
+
+const Diagnostics = z.object({
+  errors: z.array(ErrorDetail).optional(),
+  warnings: z.array(ErrorDetail).optional(),
+  logs: z.array(LogEntry).optional(),
+})
+
+const SolutionAttempt = z.object({
+  id: z.string().optional(),
+  description: z.string(),
+  steps: z.string().optional(),
+  success: z.boolean(),
+  resultingErrors: z.array(ErrorDetail).optional(),
+  timestamp: z.string().optional(),
+})
+
+const EnvironmentInfo = z.object({
+  nodeVersion: z.string().optional(),
+  platform: z.string().optional(),
+  cwd: z.string().optional(),
+  envVars: z.record(z.string(), z.string()).optional(),
+})
+
+const Dependency = z.object({
+  name: z.string(),
+  version: z.string(),
+})
+
+const VCSInfo = z.object({
+  branch: z.string().optional(),
+  commitHash: z.string().optional(),
+  remoteUrl: z.string().optional(),
+})
+
+const PerformanceMetrics = z.object({
+  cpuUsage: z.number().optional(),
+  memoryUsage: z.number().optional(),
+  executionTimeMs: z.number().optional(),
+})
+
+// --- Top-level schema ---
+export const HelpRequestSchema = z.object({
+  session: SessionInfo.describe(
+    'REQUIRED: Session information with unique ID and timestamp'
+  ),
+  conversation: Conversation.describe(
+    'REQUIRED: Recent conversation messages that led to this help request. Include context that helps understand the issue'
+  ),
+  issue: z
+    .object({
+      description: z
+        .string()
+        .describe(
+          'REQUIRED: Clear description of the problem or issue that needs human assistance'
+        ),
+      additionalContext: z
+        .string()
+        .optional()
+        .describe(
+          'OPTIONAL: Any additional context, error messages, or relevant information'
+        ),
+    })
+    .describe('REQUIRED: The core issue that needs help'),
+  workspace: WorkspaceState.optional().describe(
+    "RECOMMENDED: Information about the user's workspace/project if relevant to the issue"
+  ),
+  diagnostics: Diagnostics.optional().describe(
+    'OPTIONAL: Error messages, warnings, or logs related to the issue'
+  ),
+  solutionsAttempted: z
+    .array(SolutionAttempt)
     .optional()
-    .describe('Current workspace directory path'),
-  additional_context: z
-    .string()
+    .describe(
+      'OPTIONAL: Previous attempts to solve the issue and their outcomes'
+    ),
+  environment: EnvironmentInfo.optional().describe(
+    'OPTIONAL: System environment details (Node.js version, platform, etc.)'
+  ),
+  dependencies: z
+    .array(Dependency)
     .optional()
-    .describe('Any additional context or information'),
+    .describe('OPTIONAL: Project dependencies if relevant to the issue'),
+  versionControl: VCSInfo.optional().describe(
+    'OPTIONAL: Git/version control information'
+  ),
+  performance: PerformanceMetrics.optional().describe(
+    'OPTIONAL: Performance metrics if the issue is performance-related'
+  ),
 })
 
 // Context capture utilities
@@ -176,48 +350,58 @@ server.addTool({
   name: 'request_help',
   description:
     'Request help by capturing comprehensive context about the current issue and workspace state',
-  parameters: helpRequestSchema,
+  parameters: HelpRequestSchema,
   execute: async (args) => {
-    const sessionId = uuidv4()
-    const timestamp = new Date().toISOString()
+    // Use session info from args or generate new one
+    const sessionId = args.session?.sessionId || uuidv4()
+    const timestamp = args.session?.timestamp || new Date().toISOString()
 
     logger.info('Help request initiated', { sessionId, timestamp })
 
     try {
-      // Capture workspace state
-      const workspaceState = await captureWorkspaceState(args.workspace_path)
+      // Capture workspace state if workspace info is provided
+      let workspaceState = null
+      if (args.workspace?.rootPath) {
+        workspaceState = await captureWorkspaceState(args.workspace.rootPath)
+      }
 
-      // Capture active files content
-      const activeFilesContent = await captureActiveFilesContent(
-        args.active_files,
-        args.workspace_path
-      )
+      // Capture active files content from workspace files
+      let activeFilesContent = {}
+      if (args.workspace?.files) {
+        const filePaths = args.workspace.files.map((f) => f.path)
+        activeFilesContent = await captureActiveFilesContent(
+          filePaths,
+          args.workspace?.rootPath
+        )
+      }
 
-      // Compile comprehensive context
+      // Compile comprehensive context using the new schema structure
       const helpContext = {
-        sessionId,
-        timestamp,
-        issue: {
-          description: args.issue_description,
-          errorMessages: args.error_messages || 'None provided',
-          additionalContext: args.additional_context || 'None provided',
+        session: {
+          sessionId,
+          timestamp,
         },
-        conversation: {
-          history:
-            args.conversation_history || 'No conversation history provided',
-        },
-        workspace: {
-          path: args.workspace_path || 'Not specified',
-          state: workspaceState,
-        },
-        activeFiles: {
-          list: args.active_files || [],
-          content: activeFilesContent,
-        },
-        environment: {
+        conversation: args.conversation,
+        issue: args.issue,
+        workspace: args.workspace
+          ? {
+              ...args.workspace,
+              state: workspaceState,
+            }
+          : null,
+        diagnostics: args.diagnostics || null,
+        solutionsAttempted: args.solutionsAttempted || [],
+        environment: args.environment || {
           nodeVersion: process.version,
           platform: process.platform,
           cwd: process.cwd(),
+        },
+        dependencies: args.dependencies || [],
+        versionControl: args.versionControl || null,
+        performance: args.performance || null,
+        // Legacy compatibility data
+        activeFiles: {
+          content: activeFilesContent,
         },
       }
 
@@ -232,9 +416,9 @@ server.addTool({
       // Log to main logger
       logger.info('Help context captured', {
         sessionId,
-        issueLength: args.issue_description.length,
-        conversationLength: args.conversation_history?.length || 0,
-        activeFilesCount: args.active_files?.length || 0,
+        issueLength: args.issue?.description?.length || 0,
+        conversationLength: args.conversation?.messages?.length || 0,
+        activeFilesCount: args.workspace?.files?.length || 0,
         workspaceFilesCount: workspaceState?.totalFiles || 0,
         sessionLogPath,
       })
@@ -251,12 +435,13 @@ server.addTool({
         zoomLink,
         contextSummary: {
           issueDescription:
-            args.issue_description.substring(0, 100) +
-            (args.issue_description.length > 100 ? '...' : ''),
-          conversationHistoryLength: args.conversation_history?.length || 0,
-          activeFilesCount: args.active_files?.length || 0,
+            args.issue?.description?.substring(0, 100) +
+            (args.issue?.description?.length > 100 ? '...' : ''),
+          conversationLength: args.conversation?.messages?.length || 0,
+          activeFilesCount: args.workspace?.files?.length || 0,
           workspaceFilesCount: workspaceState?.totalFiles || 0,
-          errorMessages: !!args.error_messages,
+          hasErrors: !!args.diagnostics?.errors?.length,
+          hasDiagnostics: !!args.diagnostics,
         },
         logFile: sessionLogPath,
         nextSteps: [
