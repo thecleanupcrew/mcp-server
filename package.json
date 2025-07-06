@@ -4,7 +4,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "fastmcp dev index.js"
+    "start": "fastmcp start index.js",
+    "dev": "fastmcp dev index.js --watch"
   },
   "author": "",
   "license": "ISC",

@@ -16,13 +16,10 @@ export const ZOOM_CONFIG = {
   password: 'helpme123',
 }
 
-// Help API configuration
-export const HELP_API_CONFIG = {
-  endpoint:
-    process.env.HELP_API_ENDPOINT || 'https://api.example.com/help-request',
-  jwtSecret: process.env.HELP_API_JWT_SECRET || 'SAMPLE_JWT',
-  // Temporary mock configuration - remove when real API is ready
-  useMockAPI: process.env.USE_MOCK_API === 'true',
+// API configuration
+export const API_CONFIG = {
+  endpoint: process.env.API_ENDPOINT || 'http://localhost:3000/api/tickets',
+  serviceKey: process.env.API_SERVICE_KEY || 'your_mcp_service_key_here',
 }
 
 // File processing limits

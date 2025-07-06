@@ -12,7 +12,7 @@ This server provides tools that allow AI assistants to capture detailed context 
 - **Structured Help Requests**: Uses Zod schemas to ensure consistent and complete help request data
 - **Session Management**: Creates unique session IDs and logs for tracking help requests
 - **API-Based Integration**: Sends help requests to external APIs for human assistance coordination
-- **Mock Development Mode**: Built-in mock API mode for development and testing
+- **Ticket-Based Integration**: Creates structured support tickets through API integration
 - **Modular Architecture**: Clean separation of concerns with organized directory structure
 
 ## Architecture
@@ -22,7 +22,7 @@ index.js             # Main entry point
 src/
 ├── api/             # API integration layer
 │   ├── index.js     # API exports
-│   └── helpRequestAPI.js # Help request API client with mock/prod modes
+│   └── helpRequestAPI.js # Help request API client for ticket creation
 ├── config/          # Configuration files
 │   └── logger.js    # Winston logger configuration
 ├── constants/       # Application constants
@@ -81,8 +81,9 @@ Captures comprehensive context about a development issue and creates a support s
 
 **Returns:**
 
-- Success message with chat portal link from API response
+- Success message with ticket ID and status
 - Session ID for reference
+- Priority level assigned to ticket
 - Context summary
 - Next steps for the user
 
@@ -103,9 +104,8 @@ Retrieves the context data for a specific help session.
 
 ### Environment Variables
 
-- `USE_MOCK_API`: Set to `'true'` to enable mock API mode for development
-- `HELP_API_ENDPOINT`: URL of the help request API endpoint
-- `HELP_API_JWT_SECRET`: JWT secret for API authentication
+- `API_ENDPOINT`: Ticket API endpoint (default: http://localhost:3000/api/tickets)
+- `API_SERVICE_KEY`: Service key for API authentication (default: your_mcp_service_key_here)
 - `PORT`: Server port (default: 8080)
 
 ### Logger Configuration
@@ -132,22 +132,21 @@ Application constants are defined in `src/constants/index.js`:
 
 The codebase follows a modular architecture:
 
-- **API**: External API integration with mock/production modes
+- **API**: External API integration for ticket creation
 - **Config**: Centralized configuration management
 - **Schemas**: Zod validation schemas for type safety
 - **Tools**: MCP tool implementations
 - **Utils**: Reusable utility functions
 - **Constants**: Shared application constants
 
-### Mock Development Mode
+### API Configuration
 
-For development and testing, enable mock mode by setting:
+The server integrates with a ticket API system. Configure the API endpoint and service key:
 
 ```bash
-USE_MOCK_API=true
+API_ENDPOINT=http://localhost:3000/api/tickets
+API_SERVICE_KEY=your_service_key_here
 ```
-
-This will simulate API responses without requiring a real external API.
 
 ### Adding New Tools
 
@@ -188,7 +187,7 @@ Each help request creates:
 - Unique session ID (UUID)
 - Timestamped session log file
 - Comprehensive context capture
-- API response with chat portal link
+- API response with ticket ID and status
 
 ## Error Handling
 
@@ -219,4 +218,4 @@ ISC License
 3. Include logging for debugging
 4. Update documentation for new features
 5. Ensure schema validation for new parameters
-6. Test both mock and production API modes
+6. Test API integration with proper authentication
