@@ -21,25 +21,23 @@ This is a **Model Context Protocol (MCP) server** that provides tools for captur
 ### Key Components
 
 1. **Server Setup** (`src/server.js`): Creates FastMCP server instance and registers tools
-2. **Tool System** (`src/tools/`): Two main tools - `request_help` and `get_help_session`
+2. **Tool System** (`src/tools/`): Single tool - `request_help`
 3. **Schema System** (`src/schemas/helpRequest.js`): Comprehensive Zod schemas for help request validation
-4. **API Integration** (`src/api/helpRequestAPI.js`): Handles external API calls with mock/production modes
-5. **Workspace Analysis** (`src/utils/workspace.js`): Captures workspace state and file contents
+4. **API Integration** (`src/api/helpRequestAPI.js`): Handles external API calls with direct argument processing
 
 ### Data Flow
 
 1. Client calls `request_help` tool with structured parameters
 2. Tool validates input against Zod schemas
-3. Workspace state is captured (files, structure, recent changes)
-4. Context is transformed into ticket format matching API schema:
+3. Tool generates session ID and timestamp automatically
+4. Arguments are transformed into ticket format matching API schema:
    - `title` (min 5 chars): Brief description of the issue
-   - `description` (min 10 chars): Full issue description
+   - `description`: Full issue description
    - `priority`: One of "low", "medium", "high", "urgent"
-   - `metadata`: All context data as string key-value pairs
+   - `metadata`: All arguments as JSON string key-value pairs
 5. Ticket data is sent to external API endpoint
-6. Session data is logged to individual JSON files in `logs/`
-7. API response with ticket ID, status, and ticket URL is returned
-8. User must click ticket URL to complete ticket creation process
+6. API response with ticket ID, status, and ticket URL is returned
+7. User must click ticket URL to complete ticket creation process
 
 ## Configuration
 
@@ -64,43 +62,34 @@ The project uses comprehensive Zod schemas for validation:
 - **WorkspaceState**: Schema for workspace analysis data
 - **Conversation**: Schema for conversation message arrays
 - **Diagnostics**: Schema for errors, warnings, and logs
-- **SessionInfo**: Schema for session tracking with timestamps
+- **SessionInfo**: Schema for session tracking (optional, auto-generated)
 
 ## Tool Implementation
 
 ### `request_help` Tool
-- Captures comprehensive context about development issues
 - Validates all parameters against Zod schemas
-- Performs workspace analysis if workspace path provided
-- Transforms context into API-compliant ticket format:
+- Automatically generates session ID and timestamp
+- Transforms arguments directly into API-compliant ticket format:
   - Title and description with minimum length validation
-  - Priority determination based on error presence and keywords
-  - All raw context stored as JSON strings in metadata
+  - Priority determination based on diagnostics and keywords
+  - All arguments stringified and stored in metadata
 - Sends ticket data to external API with proper error handling
 - Returns ticket URL that user must click to complete ticket creation
 - Instructs agent to ask user to click the ticket link
 
-### `get_help_session` Tool
-- Retrieves stored session data by session ID
-- Reads from individual JSON session files in logs directory
-- Returns structured session data or error messages
-
 ## Logging and Session Management
 
-- **Session Files**: Individual JSON files per session in `logs/` directory
 - **Winston Logger**: Configured for both file and console output
 - **Error Tracking**: Comprehensive error logging with stack traces
-- **Session IDs**: UUID-based session tracking for help requests
+- **Session IDs**: UUID-based session tracking for help requests (auto-generated)
 
-## File Processing
+## Argument Processing
 
-The workspace analysis system:
-- Limits to 5 active files maximum
-- Processes files up to 50KB in size
-- Truncates content to first 2000 characters
-- Ignores common directories (node_modules, .git, logs)
-- Analyzes file types and recent modifications
-- Captures directory structure up to 5 levels deep
+The system processes tool arguments directly:
+- No workspace file access or content processing
+- All arguments are stringified and passed to API in metadata
+- Session information is automatically generated
+- Minimal processing to maintain argument integrity
 
 ## API Schema Compliance
 
@@ -110,13 +99,10 @@ The ticket API expects data matching this schema:
 - `priority`: enum ["low", "medium", "high", "urgent"]
 - `metadata`: record of string key-value pairs
 
-All context data is stored in the metadata field with values converted to strings:
-- `rawContext`: Complete help context as JSON string
-- `sessionId`: Session identifier
-- `timestamp`: Request timestamp
-- `hasErrors`: "true"/"false" string
-- `conversationLength`: Number of messages as string
-- `workspaceFiles`: File count as string
+All tool arguments are stored in the metadata field with values converted to strings:
+- Each argument key becomes a metadata field with JSON.stringify(value)
+- Session ID and timestamp are automatically added
+- No additional processing or workspace analysis
 
 ## Error Handling
 
@@ -128,7 +114,7 @@ Robust error handling includes:
 
 ## Ticket Creation Process
 
-1. MCP server captures context and prepares ticket data
+1. MCP server receives tool arguments and prepares ticket data
 2. API call creates ticket preparation in system
 3. API returns ticket URL for user authentication
 4. User must click ticket URL and login to finalize ticket creation

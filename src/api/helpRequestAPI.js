@@ -34,15 +34,16 @@ function transformArgsToTicket(args) {
 /**
  * Sends help request args to external API
  * @param {Object} args - The tool arguments object
+ * @param {string} sessionId - Generated session ID
  * @returns {Promise<Object>} API response containing ticket information
  */
-export async function sendHelpRequestToAPI(args) {
+export async function sendHelpRequestToAPI(args, sessionId) {
   try {
     const ticketData = transformArgsToTicket(args)
     
     logger.info('Sending help request to ticket API', {
       endpoint: API_CONFIG.endpoint,
-      sessionId: args.session?.sessionId,
+      sessionId: sessionId,
       title: ticketData.title,
       priority: ticketData.priority,
     })
@@ -73,7 +74,7 @@ export async function sendHelpRequestToAPI(args) {
     const result = await response.json()
 
     logger.info('Help request API call successful', {
-      sessionId: args.session?.sessionId,
+      sessionId: sessionId,
       ticketId: result.id,
       status: result.status,
     })
@@ -84,7 +85,7 @@ export async function sendHelpRequestToAPI(args) {
       status: result.ticket?.status || result.status,
       priority: result.ticket?.priority || result.priority,
       ticketUrl: result.ticketUrl,
-      sessionId: args.session?.sessionId,
+      sessionId: sessionId,
       message: result.message || 'Help request ticket created successfully',
       apiResponse: result,
     }
@@ -92,7 +93,7 @@ export async function sendHelpRequestToAPI(args) {
     logger.error('Failed to send help request to API', {
       error: error.message,
       endpoint: API_CONFIG.endpoint,
-      sessionId: args.session?.sessionId,
+      sessionId: sessionId,
       stack: error.stack,
     })
     throw error

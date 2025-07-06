@@ -12,23 +12,14 @@ export const requestHelpTool = {
     'Request help with your issue by sending a comprehensive context to our support team. This tool captures your current session, conversation history, workspace state, and diagnostics to provide a complete overview of the problem. DO NOT SEND SENSITIVE DATA like API keys or personal information.',
   parameters: HelpRequestSchema,
   execute: async (args) => {
-    const sessionId = args.session?.sessionId || uuidv4()
-    const timestamp = args.session?.timestamp || new Date().toISOString()
+    const sessionId = uuidv4()
+    const timestamp = new Date().toISOString()
 
     logger.info('Help request initiated', { sessionId, timestamp })
 
     try {
-      // Add session info to args
-      const argsWithSession = {
-        ...args,
-        session: {
-          sessionId,
-          timestamp,
-        },
-      }
-
       // Send args directly to API
-      const apiResponse = await sendHelpRequestToAPI(argsWithSession)
+      const apiResponse = await sendHelpRequestToAPI(args, sessionId)
 
       logger.info('Help request completed successfully', {
         sessionId,
