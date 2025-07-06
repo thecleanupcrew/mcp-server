@@ -3,7 +3,7 @@ import { FastMCP } from 'fastmcp'
 
 import { logger } from './config/logger.js'
 import { SERVER_CONFIG } from './constants/index.js'
-import { requestHelpTool, getHelpSessionTool } from './tools/index.js'
+import { requestHelpTool } from './tools/index.js'
 
 /**
  * Creates and configures the MCP server
@@ -17,10 +17,9 @@ export function createServer() {
 
   // Add tools to the server
   server.addTool(requestHelpTool)
-  server.addTool(getHelpSessionTool)
 
   logger.info('MCP Help Request Server configured with tools', {
-    tools: [requestHelpTool.name, getHelpSessionTool.name],
+    tools: [requestHelpTool.name],
   })
 
   return server

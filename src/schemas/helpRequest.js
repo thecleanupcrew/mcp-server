@@ -1,17 +1,5 @@
 import { z } from 'zod'
 
-// --- Reusable sub-schemas ---
-export const SessionInfo = z.object({
-  timestamp: z
-    .string()
-    .refine((s) => !isNaN(Date.parse(s)), {
-      message: 'Must be an ISO timestamp',
-    })
-    .describe(
-      "ISO timestamp when the help request was initiated (e.g., '2025-06-22T14:44:38.000Z')"
-    ),
-})
-
 export const Message = z.object({
   role: z
     .enum(['system', 'user', 'assistant', 'tool'])
@@ -108,7 +96,6 @@ export const Diagnostics = z.object({
 })
 
 export const SolutionAttempt = z.object({
-  id: z.string().optional(),
   description: z.string(),
   steps: z.string().optional(),
   success: z.boolean(),
@@ -142,9 +129,6 @@ export const PerformanceMetrics = z.object({
 
 // --- Top-level schema ---
 export const HelpRequestSchema = z.object({
-  session: SessionInfo.describe(
-    'REQUIRED: Session information with unique ID and timestamp'
-  ),
   conversation: Conversation.describe(
     'REQUIRED: Recent conversation messages that led to this help request. Include context that helps understand the issue'
   ),
